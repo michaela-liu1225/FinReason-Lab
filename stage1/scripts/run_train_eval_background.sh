@@ -17,9 +17,9 @@ set -euo pipefail
 #   RUN_SCRIPT=stage1/scripts/run_train_eval_matrix.sh
 #   LOG_DIR=stage1/logs
 #   RUN_LOG=stage1/logs/train_eval_matrix_full.log
-#   NTFY_TOPIC=finqa-stage1
+#   NTFY_TOPIC=<private-topic>
 #   NTFY_SERVER=https://ntfy.sh
-#   ENABLE_NTFY=true
+#   ENABLE_NTFY=false  # opt in explicitly
 #   WATCHDOG_TIMEOUT=1800
 #   WATCHDOG_CHECK_INTERVAL=60
 
@@ -36,9 +36,9 @@ MAIN_PID_FILE="${MAIN_PID_FILE:-${LOG_DIR}/train_eval_main.pid}"
 WATCHDOG_PID_FILE="${WATCHDOG_PID_FILE:-${LOG_DIR}/train_eval_watchdog.pid}"
 NTFY_PID_FILE="${NTFY_PID_FILE:-${LOG_DIR}/train_eval_ntfy.pid}"
 
-NTFY_TOPIC="${NTFY_TOPIC:-finqa-stage1}"
+NTFY_TOPIC="${NTFY_TOPIC:-}"
 NTFY_SERVER="${NTFY_SERVER:-https://ntfy.sh}"
-ENABLE_NTFY="${ENABLE_NTFY:-true}"
+ENABLE_NTFY="${ENABLE_NTFY:-false}"
 NOTIFY_EVERY="${NOTIFY_EVERY:-100}"
 
 WATCHDOG_TIMEOUT="${WATCHDOG_TIMEOUT:-1800}"
@@ -49,6 +49,32 @@ mkdir -p "${LOG_DIR}"
 ts() { date +"%Y-%m-%d %H:%M:%S"; }
 log() { echo "[$(ts)] [bg-runner] $*" | tee -a "${SUP_LOG}"; }
 
+validate_ntfy_config() {
+  case "${ENABLE_NTFY}" in
+    true|false) ;;
+    *)
+      log "ENABLE_NTFY must be 'true' or 'false'."
+      return 2
+      ;;
+  esac
+
+  if [[ "${ENABLE_NTFY}" != "true" ]]; then
+    return 0
+  fi
+  if [[ -z "${NTFY_TOPIC}" ]]; then
+    log "NTFY_TOPIC is required when ENABLE_NTFY=true. Use a private, unguessable topic."
+    return 2
+  fi
+  if [[ ! "${NTFY_TOPIC}" =~ ^[A-Za-z0-9_-]+$ ]]; then
+    log "NTFY_TOPIC may contain only letters, digits, '_' and '-'."
+    return 2
+  fi
+  if [[ "${NTFY_SERVER}" != https://* ]]; then
+    log "NTFY_SERVER must use HTTPS."
+    return 2
+  fi
+}
+
 send_ntfy() {
   local title="$1"
   local msg="$2"
@@ -57,13 +83,16 @@ send_ntfy() {
   if [[ "${ENABLE_NTFY}" != "true" ]]; then
     return 0
   fi
+  if [[ -z "${NTFY_TOPIC}" || "${NTFY_SERVER}" != https://* ]]; then
+    return 0
+  fi
   if ! command -v curl >/dev/null 2>&1; then
     return 0
   fi
-  curl -s -o /dev/null \
+  printf '%s' "${msg}" | curl -s -o /dev/null \
     -H "Title: ${title}" \
     -H "Priority: ${priority}" \
-    -d "${msg}" \
+    --data-binary @- \
     "${NTFY_SERVER}/${NTFY_TOPIC}" || true
 }
 
@@ -150,7 +179,7 @@ _ntfy_loop() {
   local current_run=""
   local last_notified=0
 
-  send_ntfy "Stage1 Monitor" "ntfy monitor started. topic=${NTFY_TOPIC}" "low"
+  send_ntfy "Stage1 Monitor" "ntfy monitor started." "low"
 
   tail -n 0 -F "${RUN_LOG}" 2>/dev/null | tr '\r' '\n' | while IFS= read -r line; do
     if ! pid_alive "${main_pid}"; then
@@ -209,6 +238,11 @@ _ntfy_loop() {
 }
 
 start_ntfy_monitor() {
+  if [[ "${ENABLE_NTFY}" != "true" ]]; then
+    log "ntfy notifications disabled (set ENABLE_NTFY=true and NTFY_TOPIC to opt in)."
+    return 0
+  fi
+
   local main_pid
   main_pid="$(read_pid "${MAIN_PID_FILE}")"
   [[ -n "${main_pid}" ]] || { log "Cannot start ntfy monitor: missing main pid."; return 1; }
@@ -218,7 +252,7 @@ start_ntfy_monitor() {
     </dev/null >/dev/null 2>&1 &
   local ntfy_pid=$!
   echo "${ntfy_pid}" > "${NTFY_PID_FILE}"
-  log "ntfy monitor started (pid=${ntfy_pid}, topic=${NTFY_SERVER}/${NTFY_TOPIC}, setsid=true)"
+  log "ntfy monitor started (pid=${ntfy_pid}, topic configured and hidden, setsid=true)"
 }
 
 stop_one() {
@@ -241,6 +275,7 @@ stop_one() {
 }
 
 cmd_start() {
+  validate_ntfy_config
   ensure_not_running
   start_main
   start_watchdog
@@ -265,7 +300,13 @@ cmd_status() {
   echo "RUN_SCRIPT=${RUN_SCRIPT}"
   echo "RUN_LOG=${RUN_LOG}"
   echo "SUP_LOG=${SUP_LOG}"
-  echo "NTFY=${ENABLE_NTFY} topic=${NTFY_SERVER}/${NTFY_TOPIC}"
+  if [[ "${ENABLE_NTFY}" == "true" && -n "${NTFY_TOPIC}" ]]; then
+    echo "NTFY=true topic=<configured>"
+  elif [[ "${ENABLE_NTFY}" == "true" ]]; then
+    echo "NTFY=true topic=<missing>"
+  else
+    echo "NTFY=false"
+  fi
   echo
 
   if [[ -n "${main_pid}" ]] && pid_alive "${main_pid}"; then

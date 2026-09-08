@@ -15,11 +15,46 @@ venv/
 ENV/
 env/
 
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+.secrets/
+secrets/
+credentials*.json
+*credentials*.json
+service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+hf_token*
+token.txt
+
 # Caches
 .cache/
 *.cache
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+
+# Experiment trackers and local runs
+wandb/
+mlruns/
+runs/
+
+# Model weights and checkpoints
+checkpoints/
+checkpoint-*/
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.gguf
 
 # IDE / editor
 .vscode/
@@ -36,9 +71,14 @@ Thumbs.db
 tmp_*/
 *.tmp
 
+# Local root-level datasets and generated intermediates
+/raw_data/
+/processed/
+/unified/
+
 # Local runtime artifacts
 *.log
-finqa_baseline/logs/
+finqa_baseline/logs/*
 !finqa_baseline/logs/.gitkeep
 finqa_baseline/results/*
 !finqa_baseline/results/.gitkeep

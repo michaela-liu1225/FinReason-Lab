@@ -1,5 +1,9 @@
 # COMP0087 Statistical NLP
 
+> Historical planning document from the team project. The final implemented
+> scope and reported results are summarized in the repository README; items
+> described here as proposed or optional should not be read as completed work.
+
 ## Project Proposal
 
 **Working Title**
@@ -657,5 +661,4 @@ The final report should tell one clear story:
 4. **Low-data post-training:** verifiable     data can improve FinQA, and we quantify how much data is needed.
 5. **Robustness:** those gains are only     meaningful if they do not substantially damage broader reasoning     performance on MATH and GPQA. ([NeurIPS Datasets and Benchmarks](https://datasets-benchmarks-proceedings.neurips.cc/paper_files/paper/2021/hash/be83ab3ecd0db773eb2dc1b0a17836a1-Abstract-round2.html))
 6. **Optional extension:** RL with     verifiable reward may add further gains, but only after the simpler story     is complete. ([GitHub](https://github.com/huggingface/Math-Verify))
-
 

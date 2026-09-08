@@ -1,5 +1,9 @@
 # COMP0087 FinQA — Updated Experiment Matrix and Execution Plan (Repo-Aligned)
 
+> Historical experiment plan from April 2026. Use the root README and
+> `docs/repro/README.md` for the final packaged scope, metric definitions, and
+> artifact limitations.
+
 **Version**: v2.0  
 **Date**: 2026-04-03  
 **Deadline**: 2026-04-17  

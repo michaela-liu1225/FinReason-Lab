@@ -7,7 +7,37 @@ __pycache__/
 .venv/
 .DS_Store
 
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+.secrets/
+secrets/
+credentials*.json
+*credentials*.json
+*.pem
+*.key
+hf_token*
+token.txt
+
+# Experiment trackers, checkpoints, and model weights
+wandb/
+mlruns/
+runs/
+checkpoints/
+checkpoint-*/
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.gguf
+
 # Regenerated data cache
 data/unified/
+raw_data/
+processed/
+unified/
 configs/generated/
 configs/generated_clean_strict/

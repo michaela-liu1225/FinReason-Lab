@@ -18,8 +18,8 @@ export WATCHDOG_PID_FILE="${WATCHDOG_PID_FILE:-${LOG_DIR}/8b_fullsteps_watchdog.
 export NTFY_PID_FILE="${NTFY_PID_FILE:-${LOG_DIR}/8b_fullsteps_ntfy.pid}"
 
 export NTFY_SERVER="${NTFY_SERVER:-https://ntfy.sh}"
-export NTFY_TOPIC="${NTFY_TOPIC:-finqa-stage1-8b-fullsteps}"
-export ENABLE_NTFY="${ENABLE_NTFY:-true}"
+export NTFY_TOPIC="${NTFY_TOPIC:-}"
+export ENABLE_NTFY="${ENABLE_NTFY:-false}"
 
 mkdir -p "${LOG_DIR}"
 

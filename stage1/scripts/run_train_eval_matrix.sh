@@ -112,14 +112,10 @@ PY
 
 prefetch_models() {
   log "Prefetching model repos into local cache..."
-  local token_arg=()
-  if [[ -n "${HF_TOKEN:-}" ]]; then
-    token_arg=(--token "${HF_TOKEN}")
-  fi
+  # Authentication is inherited through HF_TOKEN; never expose it in argv.
   "${PYTHON_BIN}" "${STAGE1_ROOT}/scripts/prefetch_hf_models.py" \
     --models "${MODEL_4B}" "${MODEL_8B}" \
-    --cache_dir "${HF_CACHE_ROOT}" \
-    "${token_arg[@]}"
+    --cache_dir "${HF_CACHE_ROOT}"
 }
 
 resolve_local_model_path() {

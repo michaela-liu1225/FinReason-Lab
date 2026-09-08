@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "Please cite the team report and acknowledge the original repository when using this project."
+title: "FinReason-Lab: Thinking-Aware Baselines and Low-Data Post-Training for Financial Numerical Reasoning"
+type: software
+authors:
+  - family-names: Zhang
+    given-names: Yike
+  - family-names: Wei
+    given-names: Jiaming
+  - family-names: Wang
+    given-names: Yuhao
+  - family-names: Liu
+    given-names: Yuxin
+  - family-names: Wang
+    given-names: Jiaqi
+  - family-names: Lang
+    given-names: Victor
+repository-code: "https://github.com/Quarkgluonmixture/FinQA"
+license: Apache-2.0
+preferred-citation:
+  type: report
+  title: "Thinking-Aware Baselines and Low-Data Post-Training for Financial Numerical Reasoning"
+  authors:
+    - family-names: Zhang
+      given-names: Yike
+    - family-names: Wei
+      given-names: Jiaming
+    - family-names: Wang
+      given-names: Yuhao
+    - family-names: Liu
+      given-names: Yuxin
+    - family-names: Wang
+      given-names: Jiaqi
+    - family-names: Lang
+      given-names: Victor
+  institution:
+    name: University College London
+  year: 2026

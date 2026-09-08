@@ -2,8 +2,7 @@
 # ntfy_monitor.sh - Monitor FinQA baseline progress and send push notifications via ntfy.sh
 #
 # Usage:
-#   bash ntfy_monitor.sh                          # watch default log with default topic
-#   NTFY_TOPIC=my-topic bash ntfy_monitor.sh      # custom topic
+#   ENABLE_NTFY=true NTFY_TOPIC=<private-topic> bash ntfy_monitor.sh
 #   NOTIFY_EVERY=100 bash ntfy_monitor.sh         # notify every 100 samples
 #   WATCHDOG_TIMEOUT=1800 bash ntfy_monitor.sh    # alert if no progress for 30 min (default)
 #
@@ -17,7 +16,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
-NTFY_TOPIC="${NTFY_TOPIC:-finqa-baseline}"
+ENABLE_NTFY="${ENABLE_NTFY:-false}"
+NTFY_TOPIC="${NTFY_TOPIC:-}"
 NTFY_SERVER="${NTFY_SERVER:-https://ntfy.sh}"
 LOG_FILE="${LOG_FILE:-${SCRIPT_DIR}/logs/run_verification_matrix_full.log}"
 NOTIFY_EVERY="${NOTIFY_EVERY:-50}"      # send notification every N samples
@@ -29,29 +29,59 @@ current_run=""
 
 # Temp file shared between main loop and watchdog subprocess
 LAST_PROGRESS_FILE="/tmp/finqa_ntfy_last_progress_$$"
-echo "$(date +%s)" > "${LAST_PROGRESS_FILE}"
 
 ts() { date +"%H:%M:%S"; }
 log() { echo "[$(ts)] [ntfy_monitor] $*"; }
+
+validate_ntfy_config() {
+    case "${ENABLE_NTFY}" in
+        true|false) ;;
+        *)
+            echo "[ntfy_monitor] ERROR: ENABLE_NTFY must be 'true' or 'false'." >&2
+            exit 2
+            ;;
+    esac
+
+    if [[ "${ENABLE_NTFY}" != "true" ]]; then
+        log "Notifications are disabled. Set ENABLE_NTFY=true and an explicit NTFY_TOPIC to opt in."
+        exit 0
+    fi
+    if [[ -z "${NTFY_TOPIC}" ]]; then
+        echo "[ntfy_monitor] ERROR: NTFY_TOPIC is required when notifications are enabled." >&2
+        exit 2
+    fi
+    if [[ ! "${NTFY_TOPIC}" =~ ^[A-Za-z0-9_-]+$ ]]; then
+        echo "[ntfy_monitor] ERROR: NTFY_TOPIC may contain only letters, digits, '_' and '-'." >&2
+        exit 2
+    fi
+    if [[ "${NTFY_SERVER}" != https://* ]]; then
+        echo "[ntfy_monitor] ERROR: NTFY_SERVER must use HTTPS." >&2
+        exit 2
+    fi
+}
 
 send_ntfy() {
     local title="$1"
     local msg="$2"
     local priority="${3:-default}"
-    curl -s -o /dev/null \
+    printf '%s' "${msg}" | curl -s -o /dev/null \
         -H "Title: ${title}" \
         -H "Priority: ${priority}" \
-        -d "${msg}" \
+        --data-binary @- \
         "${NTFY_SERVER}/${NTFY_TOPIC}"
 }
+
+validate_ntfy_config
 
 if ! command -v curl &>/dev/null; then
     echo "[ntfy_monitor] ERROR: curl not found." >&2
     exit 1
 fi
 
+echo "$(date +%s)" > "${LAST_PROGRESS_FILE}"
+
 log "Watching  : ${LOG_FILE}"
-log "Topic     : ${NTFY_SERVER}/${NTFY_TOPIC}"
+log "Notifications: enabled (topic configured; value hidden)"
 log "Interval  : every ${NOTIFY_EVERY} samples"
 log "Watchdog  : alert if no progress for ${WATCHDOG_TIMEOUT}s"
 

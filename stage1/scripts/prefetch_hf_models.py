@@ -18,15 +18,13 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Prefetch Hugging Face models to local cache.")
     p.add_argument("--models", type=str, nargs="+", required=True, help="Model repo ids")
     p.add_argument("--cache_dir", type=str, required=True, help="HF cache root")
-    p.add_argument("--token", type=str, default="", help="HF token; optional")
     p.add_argument("--allow-pattern", dest="allow_patterns", action="append", default=[])
     p.add_argument("--max-workers", type=int, default=8)
     return p.parse_args()
 
 
-def _effective_token(cli_token: str) -> str:
-    if cli_token.strip():
-        return cli_token.strip()
+def _effective_token() -> str:
+    """Read authentication from the environment, never from process arguments."""
     env_token = os.environ.get("HF_TOKEN", "").strip()
     if env_token:
         return env_token
@@ -38,7 +36,7 @@ def main() -> None:
     cache_dir = Path(args.cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    token = _effective_token(args.token)
+    token = _effective_token()
     model_results: List[Dict[str, Any]] = []
 
     for model in args.models:
@@ -64,4 +62,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

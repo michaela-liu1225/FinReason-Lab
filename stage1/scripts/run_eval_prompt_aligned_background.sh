@@ -15,8 +15,8 @@ export WATCHDOG_PID_FILE="${WATCHDOG_PID_FILE:-${LOG_DIR}/eval_prompt_aligned_wa
 export NTFY_PID_FILE="${NTFY_PID_FILE:-${LOG_DIR}/eval_prompt_aligned_ntfy.pid}"
 
 export NTFY_SERVER="${NTFY_SERVER:-https://ntfy.sh}"
-export NTFY_TOPIC="${NTFY_TOPIC:-finqa-stage1-evalfix}"
-export ENABLE_NTFY="${ENABLE_NTFY:-true}"
+export NTFY_TOPIC="${NTFY_TOPIC:-}"
+export ENABLE_NTFY="${ENABLE_NTFY:-false}"
 
 mkdir -p "${LOG_DIR}"
 
