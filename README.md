@@ -23,6 +23,8 @@ diagnostic.
 
 See [`docs/rag/README.md`](docs/rag/README.md) for the architecture, commands,
 measured results, provenance safeguards and remaining evaluation boundary.
+The fixed-model end-to-end release rules are defined separately in
+[`docs/rag/e2e_protocol.md`](docs/rag/e2e_protocol.md).
 
 ## Headline result
 
@@ -91,6 +93,12 @@ python scripts/fetch_finqa.py dev
   --dataset raw_data/finqa/dev.json \
   --method bm25 --top-k 10 --ks 1,3,5,10
 ```
+
+Once a pinned OpenAI-compatible Qwen3-4B endpoint is running, the
+`finreason-eval-reasoning` command evaluates final answers over a complete
+split. It keeps labels out of retrieval and generation, counts every failure or
+abstention in the denominator, and writes an immutable report plus manifest.
+No end-to-end model score is claimed until that fixed-model run has completed.
 
 The original team experiment environments remain documented below.
 
