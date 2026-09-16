@@ -275,3 +275,23 @@ def test_verification_failure_is_repaired_then_abstained() -> None:
     assert result.last_error_code == "verification_failed"
     assert result.attempts == 2
     assert len(generator.requests) == 2
+
+
+def test_failed_repair_does_not_reuse_an_earlier_execution() -> None:
+    generator = FakeGenerator(
+        [
+            GeneratedProgram("subtract(40, 10)", ("ev-1",)),
+            GeneratedProgram("not valid syntax", ("ev-1",)),
+        ]
+    )
+    result = FinReasonWorkflow(
+        FakeRetriever((_hit(),)),
+        generator,
+        verifier=RejectingVerifier(),
+        max_repairs=1,
+    ).run("By how much did revenue exceed costs?")
+
+    assert result.status == "abstained"
+    assert result.program == "not valid syntax"
+    assert result.execution is None
+    assert result.last_error_code == "invalid_syntax"
