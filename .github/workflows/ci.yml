@@ -1,0 +1,29 @@
+name: finreason-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install package and development dependencies
+        run: python -m pip install -e ".[api,dev]"
+      - name: Lint
+        run: ruff check finreason tests scripts
+      - name: Test with coverage gate
+        run: coverage run -m pytest && coverage report
+      - name: Validate committed result snapshot
+        run: python -m json.tool docs/rag/results_snapshot.json > /dev/null
+      - name: Build container
+        run: docker build -t finreason-lab:${{ github.sha }} .
