@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+      args:
+        FINREASON_EXTRAS: ${FINREASON_DOCKER_EXTRAS:-api}
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      FINREASON_DATASET_PATH: /data/dev.json
+      FINREASON_MODEL_BASE_URL: ${FINREASON_MODEL_BASE_URL:-}
+      FINREASON_MODEL_NAME: ${FINREASON_MODEL_NAME:-}
+      FINREASON_MODEL_API_KEY: ${FINREASON_MODEL_API_KEY:-}
+      FINREASON_EMBEDDING_MODEL: ${FINREASON_EMBEDDING_MODEL:-}
+      FINREASON_EMBEDDING_REVISION: ${FINREASON_EMBEDDING_REVISION:-}
+      FINREASON_RERANKER_MODEL: ${FINREASON_RERANKER_MODEL:-}
+      FINREASON_RERANKER_REVISION: ${FINREASON_RERANKER_REVISION:-}
+    volumes:
+      - ${FINREASON_DATA_DIR:-./raw_data/finqa}:/data:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
