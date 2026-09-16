@@ -15,7 +15,10 @@ UPSTREAM_COMMIT = "0f16e2867befa6840783e58be38c9efb9229d742"
 BASE_URL = f"https://raw.githubusercontent.com/czyssrs/FinQA/{UPSTREAM_COMMIT}/dataset"
 KNOWN_SPLITS = {"train", "dev", "test", "private_test"}
 EXPECTED_SHA256 = {
+    "train": "49f237eb9779b569473b26b08048867d04635a7cc39ad6a7a5664c55bb428db6",
     "dev": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51",
+    "test": "831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc",
+    "private_test": "94dfd3f82aeeb91835da7a161c5d64b9223ed3c630a27457cf5695da2ee24756",
 }
 
 
