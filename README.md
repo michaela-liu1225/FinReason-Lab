@@ -6,6 +6,24 @@ FinReason-Lab is a six-person UCL COMP0087 Natural Language Processing team proj
 
 > **Portfolio mirror:** this repository presents Yuxin Liu's contribution to the team project and preserves the original reproducibility code. It is not presented as solo work. The canonical team repository is [Quarkgluonmixture/FinQA](https://github.com/Quarkgluonmixture/FinQA).
 
+## Independent extension: retrieval and bounded tool reasoning
+
+The `feature/rag-agent-upgrade` work is Yuxin Liu's independent post-course
+extension. It adds table-aware evidence retrieval, hybrid BM25/dense ranking,
+an allow-listed Decimal program executor, bounded repair/abstention, a FastAPI
+service, Docker packaging, tests and CI. It is kept distinct from the original
+six-person submission and does not relabel the team result as solo work.
+
+On the official 883-question FinQA development split, the BM25 + MiniLM dense +
+RRF + cross-encoder reranking run reached **81.08% evidence Recall@5**, versus **68.24%**
+for the new BM25 baseline (+12.84 percentage points). These are retrieval
+results, not end-to-end answer accuracy. The safe executor separately reproduced
+**883/883** gold-program execution answers; that is an explicitly oracle
+diagnostic.
+
+See [`docs/rag/README.md`](docs/rag/README.md) for the architecture, commands,
+measured results, provenance safeguards and remaining evaluation boundary.
+
 ## Headline result
 
 Under the primary **oracle-evidence, no-thinking, final-answer-tag** evaluation setup on the full FinQA test set (**n = 1,147**), the best reported Qwen3-4B LoRA SFT run improved the legacy strict numeric metric (`accuracy_base`) from **24.93%** zero-shot to **32.43%**: an absolute gain of **7.50 percentage points**. The pipeline also records a separate `accuracy_mathverify` field; the headline values should not be relabelled as that metric.
@@ -49,16 +67,32 @@ This work was completed by:
 
 ```text
 .
+├── finreason/        # Independent RAG, retrieval, tools, workflow, and API extension
+├── tests/            # Unit and API tests for the extension
 ├── finqa_baseline/   # Zero-shot and adapter evaluation with math-verify
 ├── stage1/           # SFT, LoRA/QLoRA, data preparation, and orchestration
 └── docs/
     ├── paper/        # Report-availability note
+    ├── rag/          # Extension architecture and measured retrieval results
     └── repro/        # Protocol, experiment matrix, and reproduction notes
 ```
 
 ## Quick start
 
 Run each command block from the repository root.
+
+For the independent retrieval/tool extension, use:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[api,semantic,dev]"
+python scripts/fetch_finqa.py dev
+.venv/bin/finreason-eval-retrieval \
+  --dataset raw_data/finqa/dev.json \
+  --method bm25 --top-k 10 --ks 1,3,5,10
+```
+
+The original team experiment environments remain documented below.
 
 ### 1. Create the environments
 

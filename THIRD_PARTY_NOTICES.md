@@ -11,6 +11,8 @@ to the following third-party datasets and models:
 - **ConvFinQA** — <https://github.com/czyssrs/ConvFinQA>
 - **MultiHiertt** — <https://github.com/psunlpgroup/MultiHiertt>
 - **Qwen3 models** — <https://huggingface.co/Qwen>
+- **all-MiniLM-L6-v2 embedding model** — <https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2>
+- **MS MARCO MiniLM cross-encoder** — <https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2>
 
 Each dataset, model, and dependency remains subject to the license, access
 conditions, and usage terms published by its respective upstream provider.

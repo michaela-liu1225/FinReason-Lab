@@ -28,3 +28,10 @@ As described in Yuxin Liu's CV:
 Other code, experiments, writing, and project work may reflect contributions
 from multiple team members. Mirroring the project here does not transfer or
 expand ownership of their contributions.
+
+## Independent post-course extension
+
+The retrieval, tool-execution, bounded workflow, API, containerisation, tests,
+CI, and related documentation under `finreason/`, `tests/`, `docs/rag/`, and
+the root service configuration were added independently by Yuxin Liu after the
+course project. They are not attributed to the original six-person team.

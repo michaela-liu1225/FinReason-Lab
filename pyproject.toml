@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "finreason-lab"
+version = "0.2.0"
+description = "Evaluated retrieval- and tool-augmented financial numerical reasoning"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [{name = "Yuxin Liu"}]
+dependencies = []
+
+[project.optional-dependencies]
+api = [
+  "fastapi>=0.115,<1",
+  "pydantic>=2.9,<3",
+  "uvicorn[standard]>=0.30,<1",
+]
+semantic = [
+  "sentence-transformers>=3.3,<6",
+]
+dev = [
+  "coverage[toml]>=7.6,<8",
+  "httpx>=0.27,<1",
+  "pytest>=8.3,<9",
+  "ruff>=0.8,<1",
+]
+
+[project.scripts]
+finreason-eval-retrieval = "finreason.cli:evaluate_retrieval_main"
+finreason-audit-executor = "finreason.cli:audit_executor_main"
+finreason-demo = "finreason.cli:demo_main"
+
+[tool.setuptools.packages.find]
+include = ["finreason*"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests"]
+filterwarnings = [
+  "ignore:Using `httpx` with `starlette.testclient` is deprecated.*:Warning",
+  "ignore:The anyio.abc.BlockingPortal alias is deprecated.*:DeprecationWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["finreason"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 80
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]

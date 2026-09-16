@@ -11,6 +11,7 @@ build/
 # Virtual environments
 .venv/
 .venv_clean/
+.venv_rag/
 venv/
 ENV/
 env/
@@ -37,6 +38,9 @@ token.txt
 .cache/
 *.cache
 .pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
 .mypy_cache/
 .ruff_cache/
 
@@ -44,6 +48,7 @@ token.txt
 wandb/
 mlruns/
 runs/
+artifacts/
 
 # Model weights and checkpoints
 checkpoints/
