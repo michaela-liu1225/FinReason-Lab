@@ -53,6 +53,8 @@ abstention reason, plus a trace of every stage.
 - FastAPI endpoints, Docker packaging, pytest coverage gate and GitHub Actions.
 - Deterministic experiment IDs plus unique, immutable run artifacts recording
   dataset/config/code hashes, Git revision and dirty-worktree status.
+- A leakage-safe fixed-model end-to-end evaluator with strict answer accuracy,
+  coverage, citation, execution, repair, token-usage and latency accounting.
 
 ## Reproduce the current benchmarks
 
@@ -138,6 +140,58 @@ The safe executor audit supplied the official gold program only to test DSL
 coverage: **883/883 programs executed and matched `qa.exe_ans`** within the
 documented tolerance. This is an oracle diagnostic, not a model result.
 
+## Run a fixed-model end-to-end evaluation
+
+Follow [`e2e_protocol.md`](e2e_protocol.md) before opening the test split. The
+first development benchmark is designed for the pinned Qwen3-4B base revision
+shown below because the historical LoRA weights are not available in this
+repository and their output protocol is not compatible with the structured
+workflow.
+
+Start an OpenAI-compatible model server separately, then configure the client:
+
+```bash
+export FINREASON_MODEL_BASE_URL=http://localhost:8001/v1
+export FINREASON_MODEL_NAME=Qwen/Qwen3-4B
+export FINREASON_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export FINREASON_TOKENIZER_REVISION="$FINREASON_MODEL_REVISION"
+export FINREASON_MODEL_TEMPERATURE=0
+export FINREASON_MODEL_TOP_P=1
+export FINREASON_MODEL_MAX_TOKENS=512
+export FINREASON_MODEL_SEED=42
+export FINREASON_MODEL_ENABLE_THINKING=false
+```
+
+Run the development split with the measured retrieval configuration:
+
+```bash
+.venv/bin/finreason-eval-reasoning \
+  --dataset raw_data/finqa/dev.json \
+  --method hybrid \
+  --embedding-model sentence-transformers/all-MiniLM-L6-v2 \
+  --embedding-revision 1110a243fdf4706b3f48f1d95db1a4f5529b4d41 \
+  --reranker-model cross-encoder/ms-marco-MiniLM-L6-v2 \
+  --reranker-revision 233902d25c440f23af6f7d6e94d2946bac0bee0a \
+  --top-k 5 \
+  --candidate-k 40 \
+  --max-repairs 1
+```
+
+The primary `accuracy` uses the strict full-split denominator: abstentions,
+malformed output, invalid citations and failed execution all count as wrong.
+Percentage auto-scaling is disabled unless `--percent-auto-scale` is supplied,
+so the default reuses the earlier `accuracy_base` numeric tolerance without its
+ambiguous gold-field fallback.
+The primary execution-accuracy scorer uses `qa.exe_ans`, the output of FinQA's
+gold program, rather than the inconsistently rounded/scaled display field
+`qa.answer`; it falls back to the display answer only when no execution answer
+exists. Each per-query record states the selected `gold_source`.
+The report also retains coverage, answered-only accuracy, a 95% Wilson interval,
+program/execution success, citation precision/recall/F1, repair outcomes,
+model-reported token use and mean/p50/p95 latency. Per-query latency starts
+before chunk and retrieval-index construction; one-time semantic-model loading
+and external model-server startup are excluded from that distribution.
+
 ## Run the service
 
 Retrieval works without a model endpoint:
@@ -178,9 +232,9 @@ public internet without an authenticated gateway. Compose binds it to
   FinQA's documented `text_-1` anomaly) instead of silently reporting a false
   low score for context-only flattened data.
 - Gold programs are used only by the separately named executor audit.
-- Current measured results cover retrieval and deterministic execution. An
-  end-to-end generator benchmark still requires a pinned model/adapter and is
-  not claimed here.
+- Current measured results cover retrieval and deterministic execution. The
+  end-to-end generator benchmark command is implemented, but the score still
+  requires a live pinned model endpoint and is not claimed here.
 - The development split is for engineering iteration; final model selection
   should be frozen before a single test-set run.
 - The generic MiniLM reranker is retained because its full 883-question
