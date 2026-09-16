@@ -454,6 +454,9 @@ class FinReasonWorkflow:
         # exactly one repair, so calls can never exceed max_repairs + 1.
         for attempt in range(self.max_repairs + 1):
             display_attempt = attempt + 1
+            # An execution belongs to exactly one generated program.  Never
+            # carry a rejected attempt's result into a later failed repair.
+            last_execution = None
             trace.append(TraceEvent("generate", "started", attempt=display_attempt))
             try:
                 generated = self.generator.generate(
