@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 
 import pytest
 
-from finreason.cli import _parse_ks, _percentile, run_executor_audit, run_retrieval_evaluation
+from finreason.cli import (
+    _parse_ks,
+    _percentile,
+    reasoning_evaluation_main,
+    run_executor_audit,
+    run_retrieval_evaluation,
+)
 
 
 def _write_dataset(path) -> None:
@@ -130,3 +138,124 @@ def test_executor_audit_is_explicitly_gold_program_only(tmp_path) -> None:
     assert report["config"]["mode"] == "gold_program_executor_audit"
     assert report["summary"]["execution_success_rate"] == 1.0
     assert report["summary"]["answer_match_rate"] == 1.0
+
+
+def test_reasoning_cli_requires_an_immutable_model_revision(tmp_path, monkeypatch, capsys) -> None:
+    dataset = tmp_path / "dev.json"
+    _write_dataset(dataset)
+    monkeypatch.delenv("FINREASON_MODEL_REVISION", raising=False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["finreason-eval-reasoning", "--dataset", str(dataset)],
+    )
+
+    with pytest.raises(SystemExit, match="2"):
+        reasoning_evaluation_main()
+
+    assert "model-revision" in capsys.readouterr().err
+
+
+def test_reasoning_cli_requires_an_explicit_thinking_mode(tmp_path, monkeypatch, capsys) -> None:
+    dataset = tmp_path / "dev.json"
+    _write_dataset(dataset)
+    monkeypatch.setenv("FINREASON_MODEL_BASE_URL", "http://localhost:8001/v1")
+    monkeypatch.setenv("FINREASON_MODEL_NAME", "fixed-model")
+    monkeypatch.setenv("FINREASON_MODEL_REVISION", "model-commit-123")
+    monkeypatch.setenv("FINREASON_MODEL_SEED", "42")
+    monkeypatch.delenv("FINREASON_MODEL_ENABLE_THINKING", raising=False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["finreason-eval-reasoning", "--dataset", str(dataset)],
+    )
+
+    with pytest.raises(SystemExit, match="2"):
+        reasoning_evaluation_main()
+
+    assert "FINREASON_MODEL_ENABLE_THINKING" in capsys.readouterr().err
+
+
+def test_reasoning_cli_writes_fixed_model_report_and_manifest(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    dataset = tmp_path / "dev.json"
+    output_dir = tmp_path / "artifacts"
+    _write_dataset(dataset)
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def read(self, size=-1):
+            response = {
+                "id": "request-1",
+                "model": "served-fixed-model",
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "program": "add(125, const_0)",
+                                    "citations": ["table_1"],
+                                }
+                            )
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 20,
+                    "completion_tokens": 8,
+                    "total_tokens": 28,
+                },
+            }
+            return json.dumps(response).encode("utf-8")
+
+    captured_requests = []
+
+    def fake_urlopen(request, timeout):
+        captured_requests.append(json.loads(request.data))
+        return FakeResponse()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setenv("FINREASON_MODEL_BASE_URL", "http://localhost:8001/v1")
+    monkeypatch.setenv("FINREASON_MODEL_NAME", "fixed-model")
+    monkeypatch.setenv("FINREASON_MODEL_API_KEY", "must-not-be-persisted")
+    monkeypatch.setenv("FINREASON_MODEL_SEED", "42")
+    monkeypatch.setenv("FINREASON_MODEL_ENABLE_THINKING", "false")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "finreason-eval-reasoning",
+            "--dataset",
+            str(dataset),
+            "--model-revision",
+            "model-commit-123",
+            "--max-repairs",
+            "0",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    reasoning_evaluation_main()
+
+    command_output = json.loads(capsys.readouterr().out)
+    report_path = Path(command_output["report"])
+    manifest_path = Path(command_output["manifest"])
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert report["summary"]["accuracy"] == 1.0
+    assert report["summary"]["model_calls"] == 1
+    assert report["config"]["model_config"]["model_revision"] == "model-commit-123"
+    assert report["config"]["model_config"]["seed"] == 42
+    assert report["config"]["model_config"]["enable_thinking"] is False
+    assert captured_requests[0]["chat_template_kwargs"] == {"enable_thinking": False}
+    assert manifest["metrics"]["summary"]["accuracy"] == 1.0
+    assert "must-not-be-persisted" not in report_path.read_text(encoding="utf-8")
+    assert "must-not-be-persisted" not in manifest_path.read_text(encoding="utf-8")

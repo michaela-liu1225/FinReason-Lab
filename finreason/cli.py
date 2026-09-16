@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import time
 from collections import defaultdict
 from collections.abc import Sequence
@@ -17,7 +18,9 @@ from .chunking import chunk_example
 from .data import load_finqa
 from .evaluation import aggregate_retrieval_metrics, evaluate_retrieval
 from .executor import ProgramError, execute_program, parse_decimal
+from .generator import OpenAICompatibleChatClient, OpenAICompatibleProgramGenerator
 from .manifest import build_run_manifest
+from .reasoning_evaluation import run_reasoning_evaluation
 from .retrieval import (
     BM25Retriever,
     HybridRetriever,
@@ -89,9 +92,7 @@ def _validate_retrieval_gold(
         )
 
     chunk_ids = {chunk.evidence_id for chunk in chunks}
-    missing = sorted(
-        set(example.gold_evidence_ids) - chunk_ids - _ALLOWED_UNADDRESSABLE_GOLD_IDS
-    )
+    missing = sorted(set(example.gold_evidence_ids) - chunk_ids - _ALLOWED_UNADDRESSABLE_GOLD_IDS)
     if missing:
         raise ValueError(
             f"example {example.example_id!r} has gold evidence IDs with no source chunk; "
@@ -437,6 +438,128 @@ def audit_executor_main() -> None:
                 "manifest": str(manifest_path),
                 **report["summary"],
             },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+def reasoning_evaluation_main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Evaluate a fixed generator through the end-to-end FinReason workflow"
+    )
+    parser.add_argument("--dataset", type=Path, required=True)
+    parser.add_argument("--method", choices=("bm25", "hybrid"), default="bm25")
+    parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument("--limit", type=int)
+    parser.add_argument("--embedding-model")
+    parser.add_argument("--embedding-revision")
+    parser.add_argument("--reranker-model")
+    parser.add_argument("--reranker-revision")
+    parser.add_argument("--candidate-k", type=int, default=40)
+    parser.add_argument("--include-cells", action="store_true")
+    parser.add_argument("--max-repairs", type=int, default=1)
+    parser.add_argument("--atol", type=float, default=0.001)
+    parser.add_argument("--rtol", type=float, default=0.001)
+    parser.add_argument(
+        "--percent-auto-scale",
+        action="store_true",
+        help="Enable the legacy percentage-question recovery metric",
+    )
+    parser.add_argument(
+        "--model-revision",
+        default=os.getenv("FINREASON_MODEL_REVISION", "").strip(),
+        help="Immutable base-model revision or content hash (required)",
+    )
+    parser.add_argument(
+        "--tokenizer-revision",
+        default=os.getenv("FINREASON_TOKENIZER_REVISION", "").strip(),
+    )
+    parser.add_argument(
+        "--adapter-revision",
+        default=os.getenv("FINREASON_ADAPTER_REVISION", "").strip(),
+    )
+    parser.add_argument(
+        "--chat-template-sha256",
+        default=os.getenv("FINREASON_CHAT_TEMPLATE_SHA256", "").strip(),
+    )
+    parser.add_argument("--output-dir", type=Path, default=Path("artifacts/reasoning"))
+    args = parser.parse_args()
+
+    if not args.model_revision:
+        parser.error(
+            "--model-revision or FINREASON_MODEL_REVISION is required for a fixed-model run"
+        )
+    try:
+        generator = OpenAICompatibleProgramGenerator.from_environment()
+    except (TypeError, ValueError) as exc:
+        parser.error(str(exc))
+    client = generator.client
+    if not isinstance(client, OpenAICompatibleChatClient):
+        parser.error("the CLI requires an OpenAI-compatible model client")
+    if client.seed is None:
+        parser.error("FINREASON_MODEL_SEED is required for a fixed-model run")
+    if client.enable_thinking is None:
+        parser.error("FINREASON_MODEL_ENABLE_THINKING is required for a fixed-model run")
+
+    tokenizer_revision = args.tokenizer_revision or args.model_revision
+    model_config = {
+        "endpoint_protocol": "openai_compatible_chat_completions",
+        "model": client.model,
+        "model_revision": args.model_revision,
+        "tokenizer_revision": tokenizer_revision,
+        "adapter_revision": args.adapter_revision or None,
+        "chat_template_sha256": args.chat_template_sha256 or None,
+        "system_prompt_sha256": generator.prompt_sha256,
+        "response_schema": "finqa_program_and_citations_v1",
+        "temperature": client.temperature,
+        "top_p": client.top_p,
+        "max_tokens": client.max_tokens,
+        "seed": client.seed,
+        "enable_thinking": client.enable_thinking,
+        "timeout_seconds": client.timeout_seconds,
+    }
+    report = run_reasoning_evaluation(
+        args.dataset,
+        generator=generator,
+        method=args.method,
+        top_k=args.top_k,
+        limit=args.limit,
+        embedding_model=args.embedding_model,
+        embedding_revision=args.embedding_revision,
+        reranker_model=args.reranker_model,
+        reranker_revision=args.reranker_revision,
+        candidate_k=args.candidate_k,
+        include_cells=args.include_cells,
+        max_repairs=args.max_repairs,
+        atol=args.atol,
+        rtol=args.rtol,
+        percent_auto_scale=args.percent_auto_scale,
+        model_config=model_config,
+    )
+    manifest = build_run_manifest(
+        config=report["config"],
+        dataset_path=args.dataset,
+        metrics={
+            "summary": report["summary"],
+            "by_gold_kind": report["by_gold_kind"],
+        },
+    )
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    report_path = args.output_dir / f"{manifest.run_id}.json"
+    manifest_path = args.output_dir / f"{manifest.run_id}.manifest.json"
+    with report_path.open("x", encoding="utf-8") as handle:
+        handle.write(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+    manifest.write(manifest_path)
+    print(
+        json.dumps(
+            {
+                "run_id": manifest.run_id,
+                "report": str(report_path),
+                "manifest": str(manifest_path),
+                **report["summary"],
+            },
+            ensure_ascii=False,
             indent=2,
             sort_keys=True,
         )

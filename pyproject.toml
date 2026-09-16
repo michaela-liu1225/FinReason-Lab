@@ -30,6 +30,7 @@ dev = [
 
 [project.scripts]
 finreason-eval-retrieval = "finreason.cli:evaluate_retrieval_main"
+finreason-eval-reasoning = "finreason.cli:reasoning_evaluation_main"
 finreason-audit-executor = "finreason.cli:audit_executor_main"
 finreason-demo = "finreason.cli:demo_main"
 
